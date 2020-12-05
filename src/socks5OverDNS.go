@@ -26,17 +26,6 @@ const (
 	socksVer5       = 5
 	socksCmdConnect = 1
 )
-func encode(data []byte)  {
-	for i := 0; i < len(data); i++ {
-		data[i] = data[i] ^ 0x03
-	}
-}
-
-func decode(data []byte)  {
-	for i := 0; i < len(data); i++ {
-		data[i] = data[i] ^ 0x03
-	}
-}
 
 func getRequest(conn net.Conn) (data []byte, rawaddr []byte, host string, err error) {
 	const (
@@ -155,8 +144,8 @@ func doProxyConnection(conn net.Conn) {
 		}
 		return
 	}
-	go doHandleData(conn, remote)
-	doHandleData(remote, conn)
+	go doHandleData(conn, remote, deCoder)
+	doHandleData(remote, conn, enCoder)
 }
 
 func Proxy(serverAddr string) {
@@ -204,8 +193,8 @@ func doClientConnection(conn net.Conn, serverAddr string) {
 	log.Printf("request:%s rawadd:%s host:%s", hex.Dump(request), hex.Dump(rawadd), host)
 	_, err = conn.Write([]byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x08, 0x43})
 
-	go doHandleData(conn, server)
-	doHandleData(server, conn)
+	go doHandleData(conn, server, enCoder)
+	doHandleData(server, conn, deCoder)
 }
 
 func connectToServer(rawAddr [] byte, host string) (remote net.Conn, err error) {
@@ -223,7 +212,19 @@ func connectToServer(rawAddr [] byte, host string) (remote net.Conn, err error) 
 	return
 }
 
-func doHandleData(src, dst net.Conn)  {
+func deCoder(buf []byte, n int) {
+	for i := 0; i < n; i++ {
+		buf[i] = buf[i] ^ 0x33
+	}
+}
+
+func enCoder(buf []byte, n int) {
+	for i := 0; i < n; i++ {
+		buf[i] = buf[i] ^ 0x33
+	}
+}
+
+func doHandleData(src, dst net.Conn, cod func([]byte, int) )  {
 	defer dst.Close()
 	buf := make([]byte, 1024)
 	for {
@@ -233,6 +234,9 @@ func doHandleData(src, dst net.Conn)  {
 		// should always process n > 0 bytes before handling error
 		if n > 0 {
 			// Note: avoid overwrite err returned by Read.
+			if cod != nil {
+				cod(buf, n)
+			}
 			//log.Printf("read buf:%s", hex.Dump(buf[0:n]))
 			if _, err := dst.Write(buf[0:n]); err != nil {
 				log.Println("write:", err)
