@@ -150,7 +150,7 @@ func doProxyConnection(conn net.Conn) {
 
 func Proxy(serverAddr string) {
 	log.Printf("satart Proxy server address:%s", serverAddr)
-	l, err := net.Listen("tcp", "127.0.0.1:1090")
+	l, err := net.Listen("tcp", ":1090")
 	if err != nil {
 		log.Printf("net listen error")
 		return
