@@ -27,7 +27,7 @@ const (
 	socksCmdConnect = 1
 )
 
-func getRequest(conn net.Conn) (data []byte, rawaddr []byte, host string, err error) {
+func getRequest(conn net.Conn, cod func([]byte, int)) (data []byte, rawaddr []byte, host string, err error) {
 	const (
 		idVer   = 0
 		idCmd   = 1
@@ -50,6 +50,9 @@ func getRequest(conn net.Conn) (data []byte, rawaddr []byte, host string, err er
 	// read till we get possible domain length field
 	if n, err = io.ReadAtLeast(conn, buf, idDmLen+1); err != nil {
 		return
+	}
+	if cod != nil {
+		cod(buf, n)
 	}
 	// check version and cmd
 	if buf[idVer] != socksVer5 {
@@ -79,6 +82,9 @@ func getRequest(conn net.Conn) (data []byte, rawaddr []byte, host string, err er
 	} else if n < reqLen { // rare case
 		if _, err = io.ReadFull(conn, buf[n:reqLen]); err != nil {
 			return
+		}
+		if cod != nil {
+			cod(buf[n:], reqLen - n)
 		}
 	} else {
 		err = errReqExtraData
@@ -124,7 +130,7 @@ func Server(addr string) {
 }
 
 func doProxyConnection(conn net.Conn) {
-	_, rawAddr, host, err := getRequest(conn)
+	_, rawAddr, host, err := getRequest(conn, deCoder)
 	if err != nil {
 		log.Printf("get request error:%s", err)
 		return
@@ -181,9 +187,9 @@ func Proxy(serverAddr string) {
 }
 
 func doClientConnection(conn net.Conn, serverAddr string) {
-	request, rawadd, host, err := getRequest(conn)
+	request, rawadd, host, err := getRequest(conn, nil)
 
-
+	enCoder(request, len(request))
 	server, err := connectToServer(request, serverAddr)
 
 	if err != nil {
