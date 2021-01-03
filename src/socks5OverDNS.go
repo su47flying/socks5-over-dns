@@ -87,8 +87,8 @@ func getRequest(conn net.Conn, cod func([]byte, int)) (data []byte, rawaddr []by
 			cod(buf[n:], reqLen - n)
 		}
 	} else {
-		err = errReqExtraData
-		return
+		//err = errReqExtraData
+		//return
 	}
 
 	rawaddr = buf[idType:reqLen]
@@ -118,7 +118,7 @@ func Server(addr string) {
 	}
 
 	for {
-		conn, err := l.Accept();
+		conn, err := l.Accept()
 		if err != nil {
 			log.Printf("accept error")
 			return
